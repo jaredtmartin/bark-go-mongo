@@ -149,3 +149,15 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 	}
 	return nil
 }
+func Delete(ctx *fiber.Ctx, collection_name string, id string) error {
+	db := ctx.Locals("db").(*mongo.Database)
+	collection := db.Collection(collection_name)
+	_, err := collection.DeleteOne(context.Background(), bson.M{"_id": id})
+	return err
+}
+func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
+	db := ctx.Locals("db").(*mongo.Database)
+	collection := db.Collection(collection_name)
+	_, err := collection.DeleteMany(context.Background(), filter)
+	return err
+}
