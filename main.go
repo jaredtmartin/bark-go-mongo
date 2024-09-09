@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -98,15 +97,15 @@ func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface
 	if err = cursor.All(ctx, results); err != nil {
 		return err
 	}
-	models, ok := results.([]Model)
-	if !ok {
-		log.Println("Unable to set CollectionName on results of Find")
-		return nil
-		// return fmt.Errorf("results is not an array of Models")
-	}
-	for _, obj := range models {
-		obj.SetCollectionName(collection_name)
-	}
+	// I don't know why this doesnt work
+	// models, ok := results.([]Model)
+	// if !ok {
+	// 	log.Println("results is not of type []*Model")
+	// } else {
+	// 	for _, obj := range models {
+	// 		obj.SetCollectionName(collection_name)
+	// 	}
+	// }
 	return nil
 }
 func FindAndCount(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) (int64, error) {
