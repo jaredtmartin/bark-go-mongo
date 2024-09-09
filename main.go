@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,18 +20,26 @@ type Model interface {
 	SetId(id string)
 	GetCreatedOn() time.Time
 	SetCreatedOn(createdOn time.Time)
+	GetCollectionName() string
+	SetCollectionName(collection string)
 	GetVersion() int
 	IncrementVersion()
 }
 
 type DefaultModel struct {
-	Id        string    `json:"_id" bson:"_id,omitempty"`
-	CreatedOn time.Time `json:"createdOn" bson:"createdOn"`
-	UpdatedOn time.Time `json:"updatedOn" bson:"updatedOn"`
-	Version   int       `json:"version" bson:"version"`
-	// CollectionName string
+	Id             string    `json:"_id" bson:"_id,omitempty"`
+	CreatedOn      time.Time `json:"createdOn" bson:"createdOn"`
+	UpdatedOn      time.Time `json:"updatedOn" bson:"updatedOn"`
+	Version        int       `json:"version" bson:"version"`
+	CollectionName string
 }
 
+func (m *DefaultModel) GetCollectionName() string {
+	return m.CollectionName
+}
+func (m *DefaultModel) SetCollectionName(collection_name string) {
+	m.CollectionName = collection_name
+}
 func (m *DefaultModel) GetId() string {
 	return m.Id
 }
@@ -74,6 +83,7 @@ func FindOne(c *fiber.Ctx, collection_name string, filter bson.M, obj Model) err
 	if err != nil {
 		return err
 	}
+	obj.SetCollectionName(collection_name)
 	return nil
 }
 func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
@@ -87,6 +97,15 @@ func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface
 	}
 	if err = cursor.All(ctx, results); err != nil {
 		return err
+	}
+	models, ok := results.([]Model)
+	if !ok {
+		log.Println("Unable to set CollectionName on results of Find")
+		return nil
+		// return fmt.Errorf("results is not an array of Models")
+	}
+	for _, obj := range models {
+		obj.SetCollectionName(collection_name)
 	}
 	return nil
 }
