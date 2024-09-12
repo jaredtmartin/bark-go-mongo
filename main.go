@@ -60,9 +60,10 @@ func (m *DefaultModel) GetVersion() int {
 }
 
 // I cant seem to make this work because the dEfaultModel doesnt have all the fields
-// func (m *DefaultModel) Save(c *fiber.Ctx) error {
-// 	return Save(c, m.CollectionName, m)
-// }
+//
+//	func (m *DefaultModel) Save(c *fiber.Ctx) error {
+//		return Save(c, m.CollectionName, m)
+//	}
 
 func Get(c *fiber.Ctx, collection_name string, obj Model) error {
 	id := obj.GetId()
@@ -125,12 +126,12 @@ func All(c *fiber.Ctx, collection_name string, results interface{}, opts *option
 	filter := bson.M{}
 	return Find(c, collection_name, filter, results, opts)
 }
-func Save(c *fiber.Ctx, collection_name string, model Model, opts *options.UpdateOptionsBuilder) error {
+func Save(c *fiber.Ctx, model Model, opts *options.UpdateOptionsBuilder) error {
 	if model.GetId() == "" {
 		model.SetId(Uuid(c))
 	}
 	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
+	collection := db.Collection(model.GetCollectionName())
 	if model.GetCreatedOn().IsZero() {
 		return Insert(model, collection, nil)
 	}
