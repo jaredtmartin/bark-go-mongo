@@ -155,7 +155,7 @@ func Insert(model Model, collection *mongo.Collection, opts *options.InsertOneOp
 	return nil
 }
 func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
-	fmt.Printf("Saving %v\n", model)
+	fmt.Printf("Updating %v\n", model)
 	ctx := context.Background()
 	filter := bson.M{"_id": model.GetId()}
 	model.IncrementVersion()
@@ -168,10 +168,10 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 	}
 	return nil
 }
-func Delete(ctx *fiber.Ctx, collection_name string, id string) error {
+func Delete(ctx *fiber.Ctx, model Model) error {
 	db := ctx.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
-	_, err := collection.DeleteOne(context.Background(), bson.M{"_id": id})
+	collection := db.Collection(model.GetCollectionName())
+	_, err := collection.DeleteOne(context.Background(), bson.M{"_id": model.GetId()})
 	return err
 }
 func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
