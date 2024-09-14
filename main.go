@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -179,4 +180,38 @@ func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
 	collection := db.Collection(collection_name)
 	_, err := collection.DeleteMany(context.Background(), filter)
 	return err
+}
+
+//	func (m *DefaultModel) GetVersion() int {
+//		return m.Version
+//	}
+func (m *DefaultModel) Debug(text string, fields []string) {
+	bsonData, err := bson.Marshal(m)
+	if err != nil {
+		fmt.Println("Error marshaling struct:", err)
+		return
+	}
+	var doc bson.M
+	if err := bson.Unmarshal(bsonData, &doc); err != nil {
+		fmt.Println("Error unmarshaling BSON to bson.M:", err)
+		return
+	}
+	// doc, err := bson.Marshal(m)
+	// if err != nil {
+	// 	fmt.Printf("Unable to show Debug for obj %v\n", m)
+	// }
+	// for key, val := range doc {
+	// 	text += fmt.Sprintf("%s: %v", key, val)
+	// }
+
+	for key, value := range doc {
+		text += fmt.Sprintf("%s: %v\n", key, value)
+	}
+	// for k, v := range doc {
+	// 	keys = append(keys, k)
+	// 	if m2, ok := v.(bson.M); ok {
+	// 		keys = append(keys, getKeys(m2)...)
+	// 	}
+	// }
+	log.Println(text)
 }
