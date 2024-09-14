@@ -181,11 +181,7 @@ func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
 	_, err := collection.DeleteMany(context.Background(), filter)
 	return err
 }
-
-//	func (m *DefaultModel) GetVersion() int {
-//		return m.Version
-//	}
-func (m *DefaultModel) Debug(text string, fields []string) {
+func (m *DefaultModel) DebugModel(text string, fields []string) {
 	bsonData, err := bson.Marshal(m)
 	if err != nil {
 		fmt.Println("Error marshaling struct:", err)
@@ -196,22 +192,8 @@ func (m *DefaultModel) Debug(text string, fields []string) {
 		fmt.Println("Error unmarshaling BSON to bson.M:", err)
 		return
 	}
-	// doc, err := bson.Marshal(m)
-	// if err != nil {
-	// 	fmt.Printf("Unable to show Debug for obj %v\n", m)
-	// }
-	// for key, val := range doc {
-	// 	text += fmt.Sprintf("%s: %v", key, val)
-	// }
-
 	for key, value := range doc {
 		text += fmt.Sprintf("%s: %v\n", key, value)
 	}
-	// for k, v := range doc {
-	// 	keys = append(keys, k)
-	// 	if m2, ok := v.(bson.M); ok {
-	// 		keys = append(keys, getKeys(m2)...)
-	// 	}
-	// }
 	log.Println(text)
 }
