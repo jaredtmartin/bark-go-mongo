@@ -181,7 +181,7 @@ func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
 	_, err := collection.DeleteMany(context.Background(), filter)
 	return err
 }
-func (m *DefaultModel) Debug(text string) {
+func Debug(text string, m *Model) {
 	text += " "
 	bsonData, err := bson.Marshal(m)
 	if err != nil {
