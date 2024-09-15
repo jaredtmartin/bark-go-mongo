@@ -88,9 +88,11 @@ func FindOne(c *fiber.Ctx, collection_name string, filter bson.M, obj Model) err
 	return nil
 }
 func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
+	collection := c.Locals("db").(*mongo.Database).Collection(collection_name)
+	return FindInCollection(collection, filter, results, opts)
+}
+func FindInCollection(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
 	ctx := context.Background()
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
 
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
