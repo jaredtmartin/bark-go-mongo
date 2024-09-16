@@ -135,6 +135,12 @@ func Save(c *fiber.Ctx, model Model, opts *options.UpdateOptionsBuilder) error {
 	}
 	db := c.Locals("db").(*mongo.Database)
 	collection := db.Collection(model.GetCollectionName())
+	return SaveToCollection(collection, model, opts)
+}
+func SaveToCollection(collection *mongo.Collection, model Model, opts *options.UpdateOptionsBuilder) error {
+	if model.GetId() == "" {
+		model.SetId(NewUuid())
+	}
 	if model.GetCreatedOn().IsZero() {
 		return Insert(model, collection, nil)
 	}
