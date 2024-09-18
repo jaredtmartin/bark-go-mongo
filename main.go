@@ -66,7 +66,7 @@ func (m *DefaultModel) GetVersion() int {
 //		return Save(c, m.CollectionName, m)
 //	}
 
-func Get(c *fiber.Ctx, collection_name string, obj Model) error {
+func Get(c *fiber.Ctx, obj Model) error {
 	id := obj.GetId()
 	if id == "" {
 		return ErrMissingId
@@ -74,17 +74,17 @@ func Get(c *fiber.Ctx, collection_name string, obj Model) error {
 	filter := bson.M{"_id": obj.GetId()}
 	// fmt.Println("filter", filter)
 
-	return FindOne(c, collection_name, filter, obj)
+	return FindOne(c, filter, obj)
 }
-func FindOne(c *fiber.Ctx, collection_name string, filter bson.M, obj Model) error {
+func FindOne(c *fiber.Ctx, filter bson.M, obj Model) error {
+	collectionName := obj.GetCollectionName()
 	ctx := context.Background()
 	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
+	collection := db.Collection(collectionName)
 	err := collection.FindOne(ctx, filter).Decode(obj)
 	if err != nil {
 		return err
 	}
-	obj.SetCollectionName(collection_name)
 	return nil
 }
 func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
