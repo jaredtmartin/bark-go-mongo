@@ -20,6 +20,8 @@ type Model interface {
 	SetId(id string)
 	GetCreatedOn() time.Time
 	SetCreatedOn(createdOn time.Time)
+	GetUpdatedOn() time.Time
+	SetUpdatedOn(updatedOn time.Time)
 	GetCollectionName() string
 	SetCollectionName(collection string)
 	GetVersion() int
@@ -52,6 +54,12 @@ func (m *DefaultModel) GetCreatedOn() time.Time {
 }
 func (m *DefaultModel) SetCreatedOn(createdOn time.Time) {
 	m.CreatedOn = createdOn
+}
+func (m *DefaultModel) GetUpdatedOn() time.Time {
+	return m.UpdatedOn
+}
+func (m *DefaultModel) SetUpdatedOn(updatedOn time.Time) {
+	m.UpdatedOn = updatedOn
 }
 func (m *DefaultModel) IncrementVersion() {
 	m.Version += 1
@@ -167,6 +175,7 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 	fmt.Printf("Updating %v\n", model)
 	ctx := context.Background()
 	filter := bson.M{"_id": model.GetId()}
+	model.SetUpdatedOn(time.Now())
 	model.IncrementVersion()
 	res, err := collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
 	fmt.Println("res", res)
