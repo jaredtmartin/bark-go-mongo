@@ -155,30 +155,30 @@ func SaveToCollection(collection *mongo.Collection, model Model, opts *options.U
 	return Update(model, collection, opts)
 }
 func Insert(model Model, collection *mongo.Collection, opts *options.InsertOneOptionsBuilder) error {
-	fmt.Printf("Inserting %v\n", model)
+	// fmt.Printf("Inserting %v\n", model)
 	model.SetCreatedOn(time.Now())
 	model.IncrementVersion()
 	ctx := context.Background()
 
-	res, err := collection.InsertOne(ctx, model, opts)
+	_, err := collection.InsertOne(ctx, model, opts)
 
 	if err != nil {
 		fmt.Println("mongo insert err", err)
 		return err
 	}
-	fmt.Println("res", res)
+	// fmt.Println("res", res)
 	// model.SetId(res.InsertedID.(string))
 
 	return nil
 }
 func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
-	fmt.Printf("Updating %v\n", model)
+	// fmt.Printf("Updating %v\n", model)
 	ctx := context.Background()
 	filter := bson.M{"_id": model.GetId()}
 	model.SetUpdatedOn(time.Now())
 	model.IncrementVersion()
-	res, err := collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
-	fmt.Println("res", res)
+	_, err := collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
+	// fmt.Println("res", res)
 	// fmt.Println("err", err)
 
 	if err != nil {
