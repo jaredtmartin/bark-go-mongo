@@ -208,11 +208,7 @@ func Delete(db *mongo.Database, model Model) error {
 	_, err = collection.DeleteOne(context.Background(), bson.M{"_id": model.GetId()})
 	return err
 }
-func DeleteMany(db *mongo.Database, collection_name string, filter bson.M) error {
-	if collection_name == "" {
-		return errors.New("collection name is required to delete many")
-	}
-	collection := db.Collection(collection_name)
+func DeleteMany(collection *mongo.Collection, filter bson.M) error {
 	_, err := collection.DeleteMany(context.Background(), filter)
 	return err
 }
