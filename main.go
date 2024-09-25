@@ -2,16 +2,27 @@ package bark
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
+
+const tokenLength = 16
+
+func NewUuid() string {
+	b := make([]byte, tokenLength)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
+}
 
 var ErrMissingId = errors.New("missing id")
 
@@ -74,32 +85,28 @@ func (m *DefaultModel) GetVersion() int {
 //		return Save(c, m.CollectionName, m)
 //	}
 
-func Get(c *fiber.Ctx, obj Model) error {
-	id := obj.GetId()
+func Get(db *mongo.Database, model Model) error {
+	id := model.GetId()
 	if id == "" {
 		return ErrMissingId
 	}
-	filter := bson.M{"_id": obj.GetId()}
+	collection, err := getCollectionForModel(db, model)
+	if err != nil {
+		return err
+	}
+	filter := bson.M{"_id": model.GetId()}
 	// fmt.Println("filter", filter)
-
-	return FindOne(c, filter, obj)
+	return FindOne(collection, filter, model)
 }
-func FindOne(c *fiber.Ctx, filter bson.M, obj Model) error {
-	collectionName := obj.GetCollectionName()
+func FindOne(collection *mongo.Collection, filter bson.M, obj Model) error {
 	ctx := context.Background()
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collectionName)
 	err := collection.FindOne(ctx, filter).Decode(obj)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
-	collection := c.Locals("db").(*mongo.Database).Collection(collection_name)
-	return FindInCollection(collection, filter, results, opts)
-}
-func FindInCollection(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
+func Find(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
 	ctx := context.Background()
 
 	cursor, err := collection.Find(ctx, filter, opts)
@@ -120,47 +127,50 @@ func FindInCollection(collection *mongo.Collection, filter bson.M, results inter
 	// }
 	return nil
 }
-func FindAndCount(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) (int64, error) {
-	err := Find(c, collection_name, filter, results, opts)
+
+func FindAndCount(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) (int64, error) {
+	err := Find(collection, filter, results, opts)
 	if err != nil {
 		return 0, err
 	}
-	count, err2 := Count(c, collection_name, filter)
+	count, err2 := Count(collection, filter)
 	return count, err2
 }
-func Count(c *fiber.Ctx, collection_name string, filter bson.M) (int64, error) {
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
+func Count(collection *mongo.Collection, filter bson.M) (int64, error) {
 	return collection.CountDocuments(context.Background(), filter)
 }
-func All(c *fiber.Ctx, collection_name string, results interface{}, opts *options.FindOptionsBuilder) error {
-	filter := bson.M{}
-	return Find(c, collection_name, filter, results, opts)
+func All(collection *mongo.Collection, results interface{}, opts *options.FindOptionsBuilder) error {
+	return Find(collection, bson.M{}, results, opts)
 }
-func Save(c *fiber.Ctx, model Model, opts *options.UpdateOptionsBuilder) error {
-	if model.GetId() == "" {
-		model.SetId(Uuid(c))
+
+func getCollectionForModel(db *mongo.Database, model Model) (*mongo.Collection, error) {
+	name := model.GetCollectionName()
+	if name == "" {
+		return nil, errors.New("collection name is required to save object")
 	}
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(model.GetCollectionName())
-	return SaveToCollection(collection, model, opts)
+	return db.Collection(model.GetCollectionName()), nil
 }
-func SaveToCollection(collection *mongo.Collection, model Model, opts *options.UpdateOptionsBuilder) error {
+func Save(db *mongo.Database, model Model, opts *options.UpdateOptionsBuilder) error {
 	if model.GetId() == "" {
 		model.SetId(NewUuid())
 	}
 	if model.GetCreatedOn().IsZero() {
-		return Insert(model, collection, nil)
+		return Insert(db, model, nil)
 	}
-	return Update(model, collection, opts)
+	return Update(db, model, opts)
 }
-func Insert(model Model, collection *mongo.Collection, opts *options.InsertOneOptionsBuilder) error {
+
+func Insert(db *mongo.Database, model Model, opts *options.InsertOneOptionsBuilder) error {
 	// fmt.Printf("Inserting %v\n", model)
+	collection, err := getCollectionForModel(db, model)
+	if err != nil {
+		return err
+	}
 	model.SetCreatedOn(time.Now())
 	model.IncrementVersion()
 	ctx := context.Background()
 
-	_, err := collection.InsertOne(ctx, model, opts)
+	_, err = collection.InsertOne(ctx, model, opts)
 
 	if err != nil {
 		fmt.Println("mongo insert err", err)
@@ -171,13 +181,17 @@ func Insert(model Model, collection *mongo.Collection, opts *options.InsertOneOp
 
 	return nil
 }
-func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
+func Update(db *mongo.Database, model Model, opts *options.UpdateOptionsBuilder) error {
 	// fmt.Printf("Updating %v\n", model)
+	collection, err := getCollectionForModel(db, model)
+	if err != nil {
+		return err
+	}
 	ctx := context.Background()
 	filter := bson.M{"_id": model.GetId()}
 	model.SetUpdatedOn(time.Now())
 	model.IncrementVersion()
-	_, err := collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
+	_, err = collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
 	// fmt.Println("res", res)
 	// fmt.Println("err", err)
 
@@ -186,14 +200,18 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 	}
 	return nil
 }
-func Delete(ctx *fiber.Ctx, model Model) error {
-	db := ctx.Locals("db").(*mongo.Database)
-	collection := db.Collection(model.GetCollectionName())
-	_, err := collection.DeleteOne(context.Background(), bson.M{"_id": model.GetId()})
+func Delete(db *mongo.Database, model Model) error {
+	collection, err := getCollectionForModel(db, model)
+	if err != nil {
+		return err
+	}
+	_, err = collection.DeleteOne(context.Background(), bson.M{"_id": model.GetId()})
 	return err
 }
-func DeleteMany(ctx *fiber.Ctx, collection_name string, filter bson.M) error {
-	db := ctx.Locals("db").(*mongo.Database)
+func DeleteMany(db *mongo.Database, collection_name string, filter bson.M) error {
+	if collection_name == "" {
+		return errors.New("collection name is required to delete many")
+	}
 	collection := db.Collection(collection_name)
 	_, err := collection.DeleteMany(context.Background(), filter)
 	return err
