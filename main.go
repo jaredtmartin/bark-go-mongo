@@ -140,3 +140,12 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 	}
 	return nil
 }
+
+func Delete(model Model, collection *mongo.Collection, opts *options.DeleteOptionsBuilder) error {
+	fmt.Printf("Deleting %v\n", model)
+	ctx := context.Background()
+	filter := bson.M{"_id": model.GetId()}
+	res, err := collection.DeleteOne(ctx, filter, opts)
+	fmt.Println("delete result: ", res)
+	return err
+}
