@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -56,7 +55,7 @@ func (m *DefaultModel) GetVersion() int {
 // 	return Save(c, m.CollectionName, m)
 // }
 
-func Get(c *fiber.Ctx, collection_name string, obj Model) error {
+func Get(collection *mongo.Collection, obj Model) error {
 	id := obj.GetId()
 	if id == "" {
 		return ErrMissingId
@@ -64,22 +63,18 @@ func Get(c *fiber.Ctx, collection_name string, obj Model) error {
 	filter := bson.M{"_id": obj.GetId()}
 	// fmt.Println("filter", filter)
 
-	return FindOne(c, collection_name, filter, obj)
+	return FindOne(collection, filter, obj)
 }
-func FindOne(c *fiber.Ctx, collection_name string, filter bson.M, obj Model) error {
+func FindOne(collection *mongo.Collection, filter bson.M, obj Model) error {
 	ctx := context.Background()
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
 	err := collection.FindOne(ctx, filter).Decode(obj)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
+func Find(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) error {
 	ctx := context.Background()
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
 
 	cursor, err := collection.Find(ctx, filter, opts)
 	if err != nil {
@@ -90,29 +85,25 @@ func Find(c *fiber.Ctx, collection_name string, filter bson.M, results interface
 	}
 	return nil
 }
-func FindAndCount(c *fiber.Ctx, collection_name string, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) (int64, error) {
-	err := Find(c, collection_name, filter, results, opts)
+func FindAndCount(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder) (int64, error) {
+	err := Find(collection, filter, results, opts)
 	if err != nil {
 		return 0, err
 	}
-	count, err2 := Count(c, collection_name, filter)
+	count, err2 := Count(collection, filter)
 	return count, err2
 }
-func Count(c *fiber.Ctx, collection_name string, filter bson.M) (int64, error) {
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
+func Count(collection *mongo.Collection, filter bson.M) (int64, error) {
 	return collection.CountDocuments(context.Background(), filter)
 }
-func All(c *fiber.Ctx, collection_name string, results interface{}, opts *options.FindOptionsBuilder) error {
+func All(collection *mongo.Collection, results interface{}, opts *options.FindOptionsBuilder) error {
 	filter := bson.M{}
-	return Find(c, collection_name, filter, results, opts)
+	return Find(collection, filter, results, opts)
 }
-func Save(c *fiber.Ctx, collection_name string, model Model, opts *options.UpdateOptionsBuilder) error {
+func Save(collection *mongo.Collection, model Model, opts *options.UpdateOptionsBuilder) error {
 	if model.GetId() == "" {
-		model.SetId(Uuid(c))
+		model.SetId(Uuid())
 	}
-	db := c.Locals("db").(*mongo.Database)
-	collection := db.Collection(collection_name)
 	if model.GetCreatedOn().IsZero() {
 		return Insert(model, collection, nil)
 	}

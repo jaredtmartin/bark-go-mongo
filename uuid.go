@@ -4,16 +4,15 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-
-	"github.com/gofiber/fiber/v2"
+	"os"
 )
 
 const tokenLength = 16
 
 var last_test_uuid = 0
 
-func Uuid(c *fiber.Ctx) string {
-	env := c.Locals("env")
+func Uuid() string {
+	env := os.Getenv("ENV")
 
 	if env == "test" {
 		last_test_uuid += 1
