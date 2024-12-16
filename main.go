@@ -49,11 +49,13 @@ func (m *DefaultModel) IncrementVersion() {
 func (m *DefaultModel) GetVersion() int {
 	return m.Version
 }
-func (m *DefaultModel) Delete(collection mongo.Collection) {
-	ctx := context.Background()
-	filter := bson.M{"_id": m.Id}
-	collection.DeleteOne(ctx, filter)
-}
+
+// func (m *DefaultModel) Delete(collection mongo.Collection) {
+// I removed this becuase it seems better to add this function to each model
+// 	ctx := context.Background()
+// 	filter := bson.M{"_id": m.Id}
+// 	collection.DeleteOne(ctx, filter)
+// }
 
 // I cant seem to make this work because the dEfaultModel doesnt have all the fields
 // func (m *DefaultModel) Save(c *fiber.Ctx) error {
