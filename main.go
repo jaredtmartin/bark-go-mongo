@@ -16,18 +16,13 @@ var ErrMissingId = errors.New("missing id")
 type Model interface {
 	GetId() string
 	SetId(id string)
-	GetCreatedOn() time.Time
-	SetCreatedOn(createdOn time.Time)
-	GetVersion() int
-	IncrementVersion()
 }
 
 type DefaultModel struct {
-	Id        string    `json:"_id" bson:"_id,omitempty"`
-	CreatedOn time.Time `json:"createdOn" bson:"createdOn"`
-	UpdatedOn time.Time `json:"updatedOn" bson:"updatedOn"`
-	Version   int       `json:"version" bson:"version"`
-	// CollectionName string
+	Id        string    `json:"Id" bson:"Id,omitempty"`
+	CreatedOn time.Time `json:"CreatedOn" bson:"CreatedOn"`
+	UpdatedOn time.Time `json:"UpdatedOn" bson:"UpdatedOn"`
+	Version   int       `json:"Version" bson:"Version"`
 }
 
 func (m *DefaultModel) GetId() string {
@@ -36,26 +31,6 @@ func (m *DefaultModel) GetId() string {
 func (m *DefaultModel) SetId(id string) {
 	m.Id = id
 }
-
-func (m *DefaultModel) GetCreatedOn() time.Time {
-	return m.CreatedOn
-}
-func (m *DefaultModel) SetCreatedOn(createdOn time.Time) {
-	m.CreatedOn = createdOn
-}
-func (m *DefaultModel) IncrementVersion() {
-	m.Version += 1
-}
-func (m *DefaultModel) GetVersion() int {
-	return m.Version
-}
-
-// func (m *DefaultModel) Delete(collection mongo.Collection) {
-// I removed this becuase it seems better to add this function to each model
-// 	ctx := context.Background()
-// 	filter := bson.M{"_id": m.Id}
-// 	collection.DeleteOne(ctx, filter)
-// }
 
 // I cant seem to make this work because the dEfaultModel doesnt have all the fields
 // func (m *DefaultModel) Save(c *fiber.Ctx) error {
@@ -67,7 +42,7 @@ func Get(collection *mongo.Collection, obj Model) error {
 	if id == "" {
 		return ErrMissingId
 	}
-	filter := bson.M{"_id": obj.GetId()}
+	filter := bson.M{"Id": obj.GetId()}
 	// fmt.Println("filter", filter)
 
 	return FindOne(collection, filter, obj)
@@ -107,39 +82,22 @@ func All(collection *mongo.Collection, results interface{}, opts *options.FindOp
 	filter := bson.M{}
 	return Find(collection, filter, results, opts)
 }
-func Save(collection *mongo.Collection, model Model, opts *options.UpdateOptionsBuilder) error {
+func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
+	fmt.Printf("Saving %v\n", model)
 	if model.GetId() == "" {
 		model.SetId(Uuid())
 	}
-	if model.GetCreatedOn().IsZero() {
-		return Insert(model, collection, nil)
-	}
-	return Update(model, collection, opts)
-}
-func Insert(model Model, collection *mongo.Collection, opts *options.InsertOneOptionsBuilder) error {
-	fmt.Printf("Inserting %v\n", model)
-	model.SetCreatedOn(time.Now())
-	model.IncrementVersion()
 	ctx := context.Background()
-
-	res, err := collection.InsertOne(ctx, model, opts)
-
-	if err != nil {
-		fmt.Println("mongo insert err", err)
-		return err
-	}
-	fmt.Println("res", res)
-	// model.SetId(res.InsertedID.(string))
-
-	return nil
-}
-func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
-	fmt.Printf("Saving %v\n", model)
-	ctx := context.Background()
-	filter := bson.M{"_id": model.GetId()}
-	model.IncrementVersion()
-	res, err := collection.UpdateOne(ctx, filter, bson.M{"$set": model}, opts)
-	fmt.Println("res", res)
+	filter := bson.M{"Id": model.GetId()}
+	res, err := collection.UpdateOne(ctx, filter, bson.M{
+		"$set": model,
+		"$inc": bson.M{"Version": 1},
+		"$setOnInsert": bson.M{
+			"CreatedOn": time.Now(),
+			"Version":   1,
+		},
+	}, opts)
+	fmt.Println("Save result: ", res)
 	// fmt.Println("err", err)
 
 	if err != nil {
@@ -151,8 +109,8 @@ func Update(model Model, collection *mongo.Collection, opts *options.UpdateOptio
 func Delete(model Model, collection *mongo.Collection, opts *options.DeleteOptionsBuilder) error {
 	fmt.Printf("Deleting %v\n", model)
 	ctx := context.Background()
-	filter := bson.M{"_id": model.GetId()}
+	filter := bson.M{"Id": model.GetId()}
 	res, err := collection.DeleteOne(ctx, filter, opts)
-	fmt.Println("delete result: ", res)
+	fmt.Println("Delete result: ", res)
 	return err
 }
