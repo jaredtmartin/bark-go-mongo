@@ -89,6 +89,7 @@ func All(collection *mongo.Collection, results interface{}, opts *options.FindOp
 	filter := bson.M{}
 	return Find(collection, filter, results, opts)
 }
+
 func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
 	fmt.Printf("Saving %v\n", model)
 	if model.GetId() == "" {
