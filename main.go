@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -16,14 +17,14 @@ var ErrMissingId = errors.New("missing id")
 type Model interface {
 	GetId() string
 	SetId(id string)
-	ClearVersion()
+	ClearBaseFields()
 }
 
 type DefaultModel struct {
 	Id        string    `json:"Id" bson:"Id,omitempty"`
-	CreatedOn time.Time `json:"CreatedOn" bson:"CreatedOn"`
-	UpdatedOn time.Time `json:"UpdatedOn" bson:"UpdatedOn"`
-	Version   int       `json:"Version" bson:"Version"`
+	CreatedOn time.Time `json:"CreatedOn" bson:"CreatedOn,omitempty"`
+	UpdatedOn time.Time `json:"UpdatedOn" bson:"UpdatedOn,omitempty"`
+	Version   int       `json:"Version" bson:"Version,omitempty"`
 }
 
 func (m *DefaultModel) GetId() string {
@@ -32,8 +33,10 @@ func (m *DefaultModel) GetId() string {
 func (m *DefaultModel) SetId(id string) {
 	m.Id = id
 }
-func (m *DefaultModel) ClearVersion() {
+func (m *DefaultModel) ClearBaseFields() {
 	m.Version = 0
+	m.CreatedOn = time.Time{}
+	m.UpdatedOn = time.Now()
 }
 
 // I cant seem to make this work because the dEfaultModel doesnt have all the fields
@@ -91,17 +94,19 @@ func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptions
 	if model.GetId() == "" {
 		model.SetId(Uuid())
 	}
-	model.ClearVersion()
+	model.ClearBaseFields()
 	ctx := context.Background()
 	filter := bson.M{"Id": model.GetId()}
-	res, err := collection.UpdateOne(ctx, filter, bson.M{
+	fmt.Println("model", model)
+	update := bson.M{
 		"$set": model,
 		"$inc": bson.M{"Version": 1},
 		"$setOnInsert": bson.M{
 			"CreatedOn": time.Now(),
-			// "Version":   1,
 		},
-	}, opts)
+	}
+	log.Println("update", update)
+	res, err := collection.UpdateOne(ctx, filter, update, opts)
 	fmt.Println("Save result: ", res)
 	// fmt.Println("err", err)
 
