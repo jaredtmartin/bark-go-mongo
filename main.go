@@ -16,6 +16,7 @@ var ErrMissingId = errors.New("missing id")
 type Model interface {
 	GetId() string
 	SetId(id string)
+	ClearVersion()
 }
 
 type DefaultModel struct {
@@ -30,6 +31,9 @@ func (m *DefaultModel) GetId() string {
 }
 func (m *DefaultModel) SetId(id string) {
 	m.Id = id
+}
+func (m *DefaultModel) ClearVersion() {
+	m.Version = 0
 }
 
 // I cant seem to make this work because the dEfaultModel doesnt have all the fields
@@ -87,6 +91,7 @@ func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptions
 	if model.GetId() == "" {
 		model.SetId(Uuid())
 	}
+	model.ClearVersion()
 	ctx := context.Background()
 	filter := bson.M{"Id": model.GetId()}
 	res, err := collection.UpdateOne(ctx, filter, bson.M{
@@ -94,7 +99,7 @@ func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptions
 		"$inc": bson.M{"Version": 1},
 		"$setOnInsert": bson.M{
 			"CreatedOn": time.Now(),
-			"Version":   1,
+			// "Version":   1,
 		},
 	}, opts)
 	fmt.Println("Save result: ", res)
