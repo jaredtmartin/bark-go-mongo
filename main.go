@@ -21,6 +21,7 @@ type Model interface {
 }
 
 type DefaultModel struct {
+	ID        string    `json:"_id" bson:"_id,omitempty"`
 	Id        string    `json:"Id" bson:"Id,omitempty"`
 	CreatedOn time.Time `json:"CreatedOn" bson:"CreatedOn,omitempty"`
 	UpdatedOn time.Time `json:"UpdatedOn" bson:"UpdatedOn,omitempty"`
@@ -34,6 +35,7 @@ func (m *DefaultModel) SetId(id string) {
 	m.Id = id
 }
 func (m *DefaultModel) ClearBaseFields() {
+	m.ID = m.Id
 	m.Version = 0
 	m.CreatedOn = time.Time{}
 	m.UpdatedOn = time.Now()
@@ -108,6 +110,7 @@ func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptions
 	}
 	log.Println("update", update)
 	res, err := collection.UpdateOne(ctx, filter, update, opts)
+	fmt.Println(" ", res.MatchedCount, res.ModifiedCount, res.UpsertedCount, res.UpsertedID)
 	fmt.Println("Save result: ", res)
 	// fmt.Println("err", err)
 
