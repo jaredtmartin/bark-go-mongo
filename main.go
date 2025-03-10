@@ -92,7 +92,7 @@ func All(collection *mongo.Collection, results interface{}, opts *options.FindOp
 	return Find(collection, filter, results, opts)
 }
 
-func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptionsBuilder) error {
+func Save(model Model, collection *mongo.Collection, opts *options.UpdateOneOptionsBuilder) error {
 	fmt.Printf("Saving %v\n", model)
 	if model.GetId() == "" {
 		model.SetId(Uuid())
@@ -120,7 +120,7 @@ func Save(model Model, collection *mongo.Collection, opts *options.UpdateOptions
 	return nil
 }
 
-func Delete(model Model, collection *mongo.Collection, opts *options.DeleteOptionsBuilder) error {
+func Delete(model Model, collection *mongo.Collection, opts *options.DeleteOneOptionsBuilder) error {
 	fmt.Printf("Deleting %v\n", model)
 	ctx := context.Background()
 	filter := bson.M{"Id": model.GetId()}
