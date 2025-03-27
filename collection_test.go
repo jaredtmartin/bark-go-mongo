@@ -21,7 +21,7 @@ const sampleModelCollectionName = "samples"
 //		return sampleModelCollectionName
 //	}
 func (m *sampleModel) Collection(ctx context.Context) (*mongo.Collection, error) {
-	return m.getCollection(sampleModelCollectionName, ctx)
+	return m.GetMongoCollection(sampleModelCollectionName, ctx)
 }
 func (m *sampleModel) Save(ctx context.Context) error {
 	return Save(m, ctx)

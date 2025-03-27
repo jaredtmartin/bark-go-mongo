@@ -47,7 +47,7 @@ func (m *DefaultModel) SetId(id string) {
 
 // Base method to get the collection for any model.
 // Each model should implement a more specfic Collection method which in turn calls this method
-func (m *DefaultModel) getCollection(name string, ctx context.Context) (*mongo.Collection, error) {
+func (m *DefaultModel) GetMongoCollection(name string, ctx context.Context) (*mongo.Collection, error) {
 	if m.collection == nil {
 		database, err := Db(ctx)
 		if err != nil {

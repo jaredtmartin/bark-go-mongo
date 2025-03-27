@@ -119,7 +119,7 @@ func TestDefaultModel_getCollection(t *testing.T) {
 			}
 
 			ctx := context.TODO()
-			collection, err := model.getCollection("test_collection", ctx)
+			collection, err := model.GetMongoCollection("test_collection", ctx)
 
 			if err == nil && collection == nil {
 				t.Errorf("getCollection() returned nil collection")
