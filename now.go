@@ -1,18 +1,18 @@
 package bark
 
 import (
-	"os"
+	"context"
 	"time"
 )
 
-func Now() time.Time {
-	env := os.Getenv("NOW")
-	// fmt.Println("env", env)
-	if env != "" {
-		now, err := time.Parse(time.RFC3339, env)
-		if err == nil {
-			return now
-		}
+func Now(ctx context.Context) time.Time {
+	nowStr, ok := ctx.Value(NowKey).(string)
+	if !ok {
+		return time.Now()
 	}
-	return time.Now()
+	now, err := time.Parse(time.RFC3339, nowStr)
+	if err != nil {
+		return time.Now()
+	}
+	return now
 }

@@ -1,4 +1,4 @@
-package bark
+package bark_test
 
 import (
 	"context"
@@ -6,47 +6,54 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/jaredtmartin/bark-go-mongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type sampleModel struct {
-	DefaultModel `bson:",inline"`
-	Name         string `json:"Name" bson:"Name,omitempty"`
+	bark.DefaultModel `bson:",inline"`
+	Name              string `json:"Name" bson:"Name,omitempty"`
 }
 
 const sampleModelCollectionName = "samples"
 
-//	func (m *sampleModel) CollectionName() string {
-//		return sampleModelCollectionName
-//	}
-func (m *sampleModel) Collection(ctx context.Context) (*mongo.Collection, error) {
-	return m.GetMongoCollection(sampleModelCollectionName, ctx)
+func NewSampleModel(Id string, Name string) *sampleModel {
+	return &sampleModel{
+		DefaultModel: bark.DefaultModel{
+			Id:             Id,
+			CollectionName: sampleModelCollectionName,
+		},
+		Name: Name,
+	}
 }
 func (m *sampleModel) Save(ctx context.Context) error {
-	return Save(m, ctx)
+	return bark.Save(m, ctx)
 }
 func (m *sampleModel) Delete(ctx context.Context) error {
-	return Delete(m, ctx)
+	return bark.Delete(m, ctx)
 }
 func TestSavingAndRetrieving(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-TestSavingAndRetrieving")
+	ctx = context.WithValue(ctx, bark.NowKey, "2024-03-27T19:55:38.782Z")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
-	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
-	dogs, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	// t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
+	dogs, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
-	dogs.Clear(ctx)
+	err = dogs.Clear(ctx)
+	if err != nil {
+		t.Fatalf("Failed to clear collection: %v", err)
+	}
 	dog := dogs.New()
 	dog.Name = "Fido"
 	// fmt.Println("dog.Id", dog.Id)
 	// fmt.Println("dog.GetId()", dog.GetId())
 	dog.Save(ctx)
 	id := dog.GetId()
-	// fmt.Println("id", id)
+	fmt.Println("id", id)
 	fectchedDog, err := dogs.Get(id, ctx)
 	if err != nil {
 		t.Fatalf("Failed to fetch dog: %v", err)
@@ -66,14 +73,14 @@ func TestSavingAndRetrieving(t *testing.T) {
 
 }
 func TestNewCollection(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Test successful creation of a collection
 	collectionName := "test_collection"
-	collection, err := NewCollection[sampleModel](collectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](collectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -82,14 +89,14 @@ func TestNewCollection(t *testing.T) {
 	}
 }
 func TestCollectionGet(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -124,14 +131,14 @@ func TestCollectionGet(t *testing.T) {
 	}
 }
 func TestCollectionFindOne(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -173,13 +180,13 @@ func TestCollectionFindOne(t *testing.T) {
 	}
 }
 func TestCollectionClear(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -215,13 +222,13 @@ func TestCollectionClear(t *testing.T) {
 }
 
 func TestCollectionClearNonTestDatabase(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "prod-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "prod-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "prod")
 	t.Setenv("ENV", "prod")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -231,18 +238,18 @@ func TestCollectionClearNonTestDatabase(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected error when clearing collection in non-test database, got nil")
 	}
-	if err != ErrClearCanOnlyBeUsedOnDbsStartingWithTest {
+	if err != bark.ErrClearCanOnlyBeUsedOnDbsStartingWithTest {
 		t.Fatalf("Expected error to be ErrClearCanOnlyBeUsedOnDbsStartingWithTest, got %v", err)
 	}
 }
 func TestCollectionFind(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -302,13 +309,13 @@ func TestCollectionFind(t *testing.T) {
 	}
 }
 func TestCollectionCount(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -365,13 +372,13 @@ func TestCollectionCount(t *testing.T) {
 	}
 }
 func TestCollectionFindAndCount(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}
@@ -452,13 +459,13 @@ func TestCollectionFindAndCount(t *testing.T) {
 	}
 }
 func TestCollectionAll(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
 	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	t.Setenv("MONGO_DB", "test")
 	t.Setenv("ENV", "test")
 
 	// Create a new collection
-	collection, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	collection, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
 	if err != nil {
 		t.Fatalf("Failed to create collection: %v", err)
 	}

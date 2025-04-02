@@ -2,15 +2,12 @@ package bark
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
-
-var ErrClearCanOnlyBeUsedOnDbsStartingWithTest = errors.New("to prevent accidents, clear method can only be used on databases whose names start with 'test'")
 
 type Collection[model any] struct {
 	collection *mongo.Collection
@@ -25,6 +22,9 @@ func NewCollection[model any](name string, ctx context.Context) (*Collection[mod
 	return &Collection[model]{
 		collection: collection,
 	}, nil
+}
+func (c *Collection[model]) Collection() *mongo.Collection {
+	return c.collection
 }
 
 // // Returns a single document with the given id
@@ -74,7 +74,7 @@ func (c *Collection[model]) Find(filter bson.M, results interface{}, opts *optio
 	return nil
 }
 
-// // Returns the total number of documents matching the filter
+// Returns the total number of documents matching the filter
 func (c *Collection[model]) Count(filter bson.M, ctx context.Context) (int64, error) {
 	return c.collection.CountDocuments(ctx, filter)
 }

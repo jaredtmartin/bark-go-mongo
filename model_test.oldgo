@@ -1,0 +1,437 @@
+package bark_test
+
+import (
+	"context"
+	"testing"
+
+	"github.com/jaredtmartin/bark-go-mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+func TestDefaultModel_GetId(t *testing.T) {
+	tests := []struct {
+		name     string
+		model    bark.DefaultModel
+		expected string
+	}{
+		{
+			name: "GetId returns correct ID",
+			model: bark.DefaultModel{
+				Id: "12345",
+			},
+			expected: "12345",
+		},
+		{
+			name: "GetId returns empty string when ID is not set",
+			model: bark.DefaultModel{
+				Id: "",
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.model.GetId()
+			if got != tt.expected {
+				t.Errorf("GetId() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+func TestDefaultModel_SetId(t *testing.T) {
+	tests := []struct {
+		name     string
+		inputId  string
+		expected bark.DefaultModel
+	}{
+		{
+			name:    "SetId sets both Id and ID fields",
+			inputId: "12345",
+			expected: bark.DefaultModel{
+				Id: "12345",
+				ID: "12345",
+			},
+		},
+		{
+			name:    "SetId sets empty string for both Id and ID fields",
+			inputId: "",
+			expected: bark.DefaultModel{
+				Id: "",
+				ID: "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := bark.DefaultModel{}
+			model.SetId(tt.inputId)
+
+			if model.Id != tt.expected.Id {
+				t.Errorf("SetId() Id = %v, want %v", model.Id, tt.expected.Id)
+			}
+			if model.ID != tt.expected.ID {
+				t.Errorf("SetId() ID = %v, want %v", model.ID, tt.expected.ID)
+			}
+		})
+	}
+}
+
+// func TestDefaultModel_getCollection(t *testing.T) {
+// 	tests := []struct {
+// 		name          string
+// 		collection    *mongo.Collection
+// 		dbFunc        func(ctx context.Context) (*mongo.Database, error)
+// 		expectedError bool
+// 	}{
+// 		{
+// 			name:       "Returns existing collection if already set",
+// 			collection: &mongo.Collection{},
+// 			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
+// 				return nil, nil
+// 			},
+// 			expectedError: false,
+// 		},
+// 		{
+// 			name:       "Returns new collection if not already set",
+// 			collection: nil,
+// 			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
+// 				return &mongo.Database{}, nil
+// 			},
+// 			expectedError: false,
+// 		},
+// 		{
+// 			name:       "Returns error if Db function fails",
+// 			collection: nil,
+// 			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
+// 				return nil, fmt.Errorf("database error")
+// 			},
+// 			expectedError: true,
+// 		},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+
+// 			model := bark.DefaultModel{
+// 				collection: tt.collection,
+// 			}
+
+// 			ctx := context.TODO()
+// 			collection, err := model.GetMongoCollection("test_collection", ctx)
+
+//				if err == nil && collection == nil {
+//					t.Errorf("getCollection() returned nil collection")
+//				}
+//			})
+//		}
+//	}
+func TestSave(t *testing.T) {
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
+	dog := &sampleModel{
+		DefaultModel: bark.DefaultModel{
+			CollectionName: sampleModelCollectionName,
+		},
+		Name: "Fido",
+	}
+	err := dog.Save(ctx)
+	if err != nil {
+		t.Fatalf("error saving model: %v", err)
+	}
+	dog = &sampleModel{
+		DefaultModel: bark.DefaultModel{
+			Id:             "12345",
+			CollectionName: sampleModelCollectionName,
+		},
+		Name: "Spot",
+	}
+	err = dog.Save(ctx)
+	if err != nil {
+		t.Fatalf("error saving model: %v", err)
+	}
+}
+func TestSavingAndDeleting(t *testing.T) {
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+	dog := NewSampleModel("1111", "Fido")
+	dog.Clear(ctx)
+	dog.Save(ctx)
+	_, err = dogs.Get(id, ctx)
+	if err != nil {
+		t.Fatalf("Failed to fetch dog: %v", err)
+	}
+	err = dog.Delete(ctx)
+	if err != nil {
+		t.Fatalf("Failed to delete dog: %v", err)
+	}
+	count, err := dogs.Count(bson.M{}, ctx)
+	if err != nil {
+		t.Fatalf("Failed to count dogs: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("Expected dog collection to be empty after deletion")
+	}
+}
+func TestModelFind(t *testing.T) {
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-TestModelFind")
+	ctx = context.WithValue(ctx, bark.NowKey, "2024-03-27T19:55:38.782Z")
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+
+	// Create a new collection
+	m1 := NewSampleModel("1111", "Fido")
+	// Clear the collection to ensure a clean slate
+	err := m1.Clear(ctx)
+	if err != nil {
+		t.Fatalf("Failed to clear collection: %v", err)
+	}
+	// m1.Save(ctx)
+
+	// m2 := NewSampleModel("2222", "Spot")
+	// m2.Save(ctx)
+	// collection, err := m1.Collection(ctx)
+	// if err != nil {
+	// 	t.Fatalf("Failed to get collection: %v", err)
+	// }
+	// // Use Find to retrieve all documents
+	// var results []sampleModel
+	// filter := bson.M{}
+
+	// err = bark.Find(collection, filter, &results, nil, ctx)
+	// if err != nil {
+	// 	t.Fatalf("Failed to find documents: %v", err)
+	// }
+
+	// // Verify the retrieved documents
+	// if len(results) != 2 {
+	// 	t.Fatalf("Expected 2 documents, got %d", len(results))
+	// }
+
+	// names := []string{results[0].Name, results[1].Name}
+	// if !(names[0] == "Fido" && names[1] == "Spot") && !(names[0] == "Spot" && names[1] == "Fido") {
+	// 	t.Errorf("Expected documents with names 'Fido' and 'Spot', got %v", names)
+	// }
+
+	// // Use Find with a filter to retrieve a specific document
+	// filter = bson.M{"Name": "Fido"}
+	// results = []sampleModel{}
+	// err = bark.Find(collection, filter, &results, nil, ctx)
+	// if err != nil {
+	// 	t.Fatalf("Failed to find documents with filter: %v", err)
+	// }
+
+	// if len(results) != 1 {
+	// 	t.Fatalf("Expected 1 document, got %d", len(results))
+	// }
+	// if results[0].Name != "Fido" {
+	// 	t.Errorf("Expected document with Name 'Fido', got %s", results[0].Name)
+	// }
+}
+func TestModelCount(t *testing.T) {
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+
+	// Create a new collection
+	dogs, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	if err != nil {
+		t.Fatalf("Failed to create collection: %v", err)
+	}
+
+	// Clear the collection to ensure a clean slate
+	err = dogs.Clear(ctx)
+	if err != nil {
+		t.Fatalf("Failed to clear collection: %v", err)
+	}
+
+	// Add multiple documents to the collection
+	model1 := dogs.New()
+	model1.Name = "Model 1"
+	err = model1.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model1: %v", err)
+	}
+
+	model2 := dogs.New()
+	model2.Name = "Model 2"
+	err = model2.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model2: %v", err)
+	}
+	collection := dogs.Collection()
+	// Count all documents in the collection
+	filter := bson.M{}
+	count, err := bark.Count(collection, filter, ctx)
+	if err != nil {
+		t.Fatalf("Failed to count documents: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected count to be 2, got %d", count)
+	}
+
+	// Count documents with a specific filter
+	filter = bson.M{"Name": "Model 1"}
+	count, err = bark.Count(collection, filter, ctx)
+	if err != nil {
+		t.Fatalf("Failed to count documents with filter: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected count to be 1, got %d", count)
+	}
+
+	// Count documents with a filter that matches no documents
+	filter = bson.M{"Name": "Nonexistent Model"}
+	count, err = bark.Count(collection, filter, ctx)
+	if err != nil {
+		t.Fatalf("Failed to count documents with non-matching filter: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Expected count to be 0, got %d", count)
+	}
+}
+func TestModelFindAndCount(t *testing.T) {
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+
+	// Create a new collection
+	dogs, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	if err != nil {
+		t.Fatalf("Failed to create collection: %v", err)
+	}
+
+	// Clear the collection to ensure a clean slate
+	err = dogs.Clear(ctx)
+	if err != nil {
+		t.Fatalf("Failed to clear collection: %v", err)
+	}
+
+	// Add multiple documents to the collection
+	model1 := dogs.New()
+	model1.Name = "Model 1"
+	err = model1.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model1: %v", err)
+	}
+
+	model2 := dogs.New()
+	model2.Name = "Model 2"
+	err = model2.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model2: %v", err)
+	}
+	collection := dogs.Collection()
+	// Use FindAndCount to retrieve all documents and count them
+	var results []sampleModel
+	filter := bson.M{}
+	count, err := bark.FindAndCount(collection, filter, &results, nil, ctx)
+	if err != nil {
+		t.Fatalf("Failed to find and count documents: %v", err)
+	}
+
+	// Verify the count and retrieved documents
+	if count != 2 {
+		t.Errorf("Expected count to be 2, got %d", count)
+	}
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 documents, got %d", len(results))
+	}
+
+	names := []string{results[0].Name, results[1].Name}
+	if !(names[0] == "Model 1" && names[1] == "Model 2") && !(names[0] == "Model 2" && names[1] == "Model 1") {
+		t.Errorf("Expected documents with names 'Model 1' and 'Model 2', got %v", names)
+	}
+
+	// Use FindAndCount with a filter to retrieve a specific document and count
+	filter = bson.M{"Name": "Model 1"}
+	results = []sampleModel{}
+	count, err = bark.FindAndCount(collection, filter, &results, nil, ctx)
+	if err != nil {
+		t.Fatalf("Failed to find and count documents with filter: %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected count to be 1, got %d", count)
+	}
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 document, got %d", len(results))
+	}
+	if results[0].Name != "Model 1" {
+		t.Errorf("Expected document with Name 'Model 1', got %s", results[0].Name)
+	}
+
+	// Use FindAndCount with a filter that matches no documents
+	filter = bson.M{"Name": "Nonexistent Model"}
+	results = []sampleModel{}
+	count, err = bark.FindAndCount(collection, filter, &results, nil, ctx)
+	if err != nil {
+		t.Fatalf("Failed to find and count documents with non-matching filter: %v", err)
+	}
+
+	if count != 0 {
+		t.Errorf("Expected count to be 0, got %d", count)
+	}
+	if len(results) != 0 {
+		t.Fatalf("Expected 0 documents, got %d", len(results))
+	}
+}
+func TestModelAll(t *testing.T) {
+	ctx := context.WithValue(context.Background(), bark.DbNameKey, "test-1")
+	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
+	t.Setenv("MONGO_DB", "test")
+	t.Setenv("ENV", "test")
+
+	// Create a new collection
+	dogs, err := bark.NewCollection[sampleModel](sampleModelCollectionName, ctx)
+	if err != nil {
+		t.Fatalf("Failed to create collection: %v", err)
+	}
+
+	// Clear the collection to ensure a clean slate
+	err = dogs.Clear(ctx)
+	if err != nil {
+		t.Fatalf("Failed to clear collection: %v", err)
+	}
+
+	// Add multiple documents to the collection
+	model1 := dogs.New()
+	model1.Name = "Model 1"
+	err = model1.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model1: %v", err)
+	}
+
+	model2 := dogs.New()
+	model2.Name = "Model 2"
+	err = model2.Save(ctx)
+	if err != nil {
+		t.Fatalf("Failed to save model2: %v", err)
+	}
+	collection := dogs.Collection()
+	// Use All to retrieve all documents
+	var results []sampleModel
+	err = bark.All(collection, &results, nil, ctx)
+	if err != nil {
+		t.Fatalf("Failed to retrieve all documents: %v", err)
+	}
+
+	// Verify the retrieved documents
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 documents, got %d", len(results))
+	}
+
+	names := []string{results[0].Name, results[1].Name}
+	if !(names[0] == "Model 1" && names[1] == "Model 2") && !(names[0] == "Model 2" && names[1] == "Model 1") {
+		t.Errorf("Expected documents with names 'Model 1' and 'Model 2', got %v", names)
+	}
+}

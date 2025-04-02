@@ -13,6 +13,7 @@ import (
 type Key string
 
 const DbNameKey Key = "dbName"
+const NowKey Key = "now"
 
 // var client *mongo.Client
 var dbs = make(map[string]*mongo.Database)

@@ -1,186 +1,232 @@
-package bark
+package bark_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
+	"github.com/jaredtmartin/bark-go-mongo"
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func TestDefaultModel_GetId(t *testing.T) {
-	tests := []struct {
-		name     string
-		model    DefaultModel
-		expected string
-	}{
-		{
-			name: "GetId returns correct ID",
-			model: DefaultModel{
-				Id: "12345",
-			},
-			expected: "12345",
-		},
-		{
-			name: "GetId returns empty string when ID is not set",
-			model: DefaultModel{
-				Id: "",
-			},
-			expected: "",
-		},
+func TestSaveAndFetch(t *testing.T) {
+	ctx := setupTest("SaveAndFetch", "2024-03-27T19:55:38.782Z", t)
+	model, err := SetupFixture([]*Obj{
+		{Name: "Fido", Id: "1111"},
+		{Name: "Spot", Id: "2222"},
+	}, ctx)
+	if err != nil {
+		t.Fatalf("Failed to save fido: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.model.GetId()
-			if got != tt.expected {
-				t.Errorf("GetId() = %v, want %v", got, tt.expected)
-			}
-		})
+	copy, err := model.Get("1111", ctx)
+	if err != nil {
+		t.Fatalf("Failed to get obj from db: %v", err)
+	}
+	if copy.Name != "Fido" {
+		t.Fatalf("Expected name to be Fido, got %s", copy.Name)
 	}
 }
-func TestDefaultModel_SetId(t *testing.T) {
-	tests := []struct {
-		name     string
-		inputId  string
-		expected DefaultModel
-	}{
-		{
-			name:    "SetId sets both Id and ID fields",
-			inputId: "12345",
-			expected: DefaultModel{
-				Id: "12345",
-				ID: "12345",
-			},
-		},
-		{
-			name:    "SetId sets empty string for both Id and ID fields",
-			inputId: "",
-			expected: DefaultModel{
-				Id: "",
-				ID: "",
-			},
-		},
+func TestGetAndSetId(t *testing.T) {
+	fido := NewSampleModel("Fido")
+	fido.SetId("1111")
+	if fido.GetId() != "1111" {
+		t.Fatalf("Expected id to be 1111, got %s", fido.GetId())
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := DefaultModel{}
-			model.SetId(tt.inputId)
-
-			if model.Id != tt.expected.Id {
-				t.Errorf("SetId() Id = %v, want %v", model.Id, tt.expected.Id)
-			}
-			if model.ID != tt.expected.ID {
-				t.Errorf("SetId() ID = %v, want %v", model.ID, tt.expected.ID)
-			}
-		})
+	fido.SetId("2222")
+	if fido.GetId() != "2222" {
+		t.Fatalf("Expected id to be 2222, got %s", fido.GetId())
 	}
 }
-func TestDefaultModel_getCollection(t *testing.T) {
-	tests := []struct {
-		name          string
-		collection    *mongo.Collection
-		dbFunc        func(ctx context.Context) (*mongo.Database, error)
-		expectedError bool
-	}{
-		{
-			name:       "Returns existing collection if already set",
-			collection: &mongo.Collection{},
-			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
-				return nil, nil
-			},
-			expectedError: false,
-		},
-		{
-			name:       "Returns new collection if not already set",
-			collection: nil,
-			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
-				return &mongo.Database{}, nil
-			},
-			expectedError: false,
-		},
-		{
-			name:       "Returns error if Db function fails",
-			collection: nil,
-			dbFunc: func(ctx context.Context) (*mongo.Database, error) {
-				return nil, fmt.Errorf("database error")
-			},
-			expectedError: true,
+func TestCollection(t *testing.T) {
+	ctx := setupTest("Collection", "2024-03-27T19:55:38.782Z", t)
+
+	// Test case: CollectionName is not set
+	model := &sampleModel{
+		DefaultModel: bark.DefaultModel[sampleModel]{},
+	}
+	_, err := model.Collection(ctx)
+	if err == nil || err.Error() != "CollectionName not set" {
+		t.Fatalf("Expected error 'CollectionName not set', got %v", err)
+	}
+
+	// Test case: Valid CollectionName
+	// model.CollectionName = "test_collection"
+	model = &sampleModel{
+		DefaultModel: bark.DefaultModel[sampleModel]{
+			CollectionName: "test_collection",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	collection, err := model.Collection(ctx)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if collection == nil {
+		t.Fatalf("Expected collection to be non-nil")
+	}
 
-			model := DefaultModel{
-				collection: tt.collection,
-			}
-
-			ctx := context.TODO()
-			collection, err := model.GetMongoCollection("test_collection", ctx)
-
-			if err == nil && collection == nil {
-				t.Errorf("getCollection() returned nil collection")
-			}
-		})
+	// Test case: Cached collection
+	cachedCollection, err := model.Collection(ctx)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if cachedCollection != collection {
+		t.Fatalf("Expected cached collection to be the same as the first collection")
 	}
 }
-func TestSave(t *testing.T) {
-	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
-	t.Setenv("MONGO_DB", "test")
-	t.Setenv("ENV", "test")
-	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
-	dogs, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+func TestFind(t *testing.T) {
+	ctx := setupTest("Find", "2024-03-27T19:55:38.782Z", t)
+	model, err := SetupFixture([]*Obj{
+		{Name: "Fido", Id: "1111"},
+		{Name: "Spot", Id: "2222"},
+	}, ctx)
 	if err != nil {
-		t.Fatalf("Failed to create collection: %v", err)
+		t.Fatalf("Failed to save fido: %v", err)
 	}
-	m1 := dogs.New()
-	err = m1.Save(ctx)
+	fmt.Println(" fixture saved successfully")
+	// Test case: Find documents with a filter
+	filter := bson.M{"Name": "Fido"}
+	opts := options.Find()
+	results, err := model.Find(filter, opts, ctx)
 	if err != nil {
-		t.Fatalf("error saving model with new ID: %v", err)
+		t.Fatalf("Failed to find documents: %v", err)
 	}
-	m2 := dogs.New()
-	m2.SetId("12345")
-	err = m2.Save(ctx)
-	if err != nil {
-		t.Fatalf("error saving model with existing ID: %v", err)
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results))
+	}
+	if results[0].Name != "Fido" {
+		t.Fatalf("Expected Name to be Fido, got %s", results[0].Name)
 	}
 
+	// Test case: Find all documents
+	filter = bson.M{}
+	results, err = model.Find(filter, opts, ctx)
+	if err != nil {
+		t.Fatalf("Failed to find documents: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 results, got %d", len(results))
+	}
 }
-func TestSavingAndDeleting(t *testing.T) {
-	ctx := context.WithValue(context.Background(), DbNameKey, "test-1")
-	t.Setenv("MONGO_URI", "mongodb://localhost:27017")
-	t.Setenv("MONGO_DB", "test")
-	t.Setenv("ENV", "test")
-	t.Setenv("NOW", "2024-03-27T19:55:38.782Z")
-	dogs, err := NewCollection[sampleModel](sampleModelCollectionName, ctx)
+func TestFindOne(t *testing.T) {
+	ctx := setupTest("FindOne", "2024-03-27T19:55:38.782Z", t)
+
+	// Setup: Insert sample data into the collection
+	model, err := SetupFixture([]*Obj{
+		{Name: "Fido", Id: "1111"},
+		{Name: "Spot", Id: "2222"},
+	}, ctx)
 	if err != nil {
-		t.Fatalf("Failed to create collection: %v", err)
+		t.Fatalf("Failed to save fido: %v", err)
 	}
-	dogs.Clear(ctx)
-	dog := dogs.New()
-	dog.Name = "Fido"
-	// fmt.Println("dog.Id", dog.Id)
-	// fmt.Println("dog.GetId()", dog.GetId())
-	dog.Save(ctx)
-	id := dog.GetId()
-	// fmt.Println("id", id)
-	_, err = dogs.Get(id, ctx)
+
+	// Test case: Find a document with a valid filter
+	filter := bson.M{"Id": "1111"}
+	result, err := model.FindOne(filter, ctx)
 	if err != nil {
-		t.Fatalf("Failed to fetch dog: %v", err)
+		t.Fatalf("Failed to find document: %v", err)
 	}
-	err = dog.Delete(ctx)
+	if result == nil {
+		t.Fatalf("Expected result to be non-nil")
+	}
+	if result.Name != "Fido" {
+		t.Fatalf("Expected Name to be Fido, got %s", result.Name)
+	}
+
+	// Test case: Find a document with a filter that matches no documents
+	filter = bson.M{"Id": "9999"}
+	result, err = model.FindOne(filter, ctx)
+	if err == nil || result != nil {
+		t.Fatalf("Expected error or nil result for non-existent document, got result: %v, error: %v", result, err)
+	}
+
+	// Test case: Error when collection is not set
+	model = &sampleModel{
+		DefaultModel: bark.DefaultModel[sampleModel]{},
+	}
+	filter = bson.M{"Id": "1111"}
+	_, err = model.FindOne(filter, ctx)
+	if err == nil || err.Error() != "failed to get collection to save model to: CollectionName not set" {
+		t.Fatalf("Expected error 'CollectionName not set', got %v", err)
+	}
+}
+func TestGet(t *testing.T) {
+	ctx := setupTest("Get", "2024-03-27T19:55:38.782Z", t)
+
+	// Setup: Insert sample data into the collection
+	model, err := SetupFixture([]*Obj{
+		{Name: "Fido", Id: "1111"},
+		{Name: "Spot", Id: "2222"},
+	}, ctx)
 	if err != nil {
-		t.Fatalf("Failed to delete dog: %v", err)
+		t.Fatalf("Failed to save fido: %v", err)
 	}
-	count, err := dogs.Count(bson.M{}, ctx)
+
+	// Test case: Get a document with a valid ID
+	result, err := model.Get("1111", ctx)
 	if err != nil {
-		t.Fatalf("Failed to count dogs: %v", err)
+		t.Fatalf("Failed to get document: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("Expected dog collection to be empty after deletion")
+	if result == nil {
+		t.Fatalf("Expected result to be non-nil")
+	}
+	if result.Name != "Fido" {
+		t.Fatalf("Expected Name to be Fido, got %s", result.Name)
+	}
+
+	// Test case: Get a document with a non-existent ID
+	result, err = model.Get("9999", ctx)
+	if err == nil || result != nil {
+		t.Fatalf("Expected error or nil result for non-existent document, got result: %v, error: %v", result, err)
+	}
+
+	// Test case: Error when collection is not set
+	model = &sampleModel{
+		DefaultModel: bark.DefaultModel[sampleModel]{},
+	}
+	_, err = model.Get("1111", ctx)
+	if err == nil || err.Error() != "failed to get collection to save model to: CollectionName not set" {
+		t.Fatalf("Expected error 'CollectionName not set', got %v", err)
+	}
+}
+func TestLoad(t *testing.T) {
+	ctx := setupTest("Load", "2024-03-27T19:55:38.782Z", t)
+
+	// Setup: Insert sample data into the collection
+	model, err := SetupFixture([]*Obj{
+		{Name: "Fido", Id: "1111"},
+		{Name: "Spot", Id: "2222"},
+	}, ctx)
+	if err != nil {
+		t.Fatalf("Failed to save fixture: %v", err)
+	}
+	fmt.Println("model:", model)
+	// Test case: Successfully load an existing document
+	model.SetId("1111")
+	// I couldnt get it to set the fields on the same object,
+	// so instead it just returns the object and you can assign to the model
+	model, err = model.Load(ctx)
+	if err != nil {
+		t.Fatalf("Failed to load document: %v", err)
+	}
+	if model.Name != "Fido" {
+		t.Fatalf("Expected Name to be Fido, got %s", model.Name)
+	}
+
+	// Test case: Attempt to load a non-existent document
+	model.SetId("9999")
+	_, err = model.Load(ctx)
+	if err != bark.ErrObjNotFound {
+		t.Fatalf("Expected ErrObjNotFound, got %v", err)
+	}
+
+	// Test case: Error when collection is not set
+	model = &sampleModel{
+		DefaultModel: bark.DefaultModel[sampleModel]{},
+	}
+	model.SetId("1111")
+	_, err = model.Load(ctx)
+	if err == nil || err.Error() != "failed to get collection to save model to: CollectionName not set" {
+		t.Fatalf("Expected error 'CollectionName not set', got %v", err)
 	}
 }
