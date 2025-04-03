@@ -24,6 +24,21 @@ type Model struct {
 	Version        int                 `json:"Version" bson:"Version,omitempty"`
 }
 
+// Creates a new model
+// The collection name is required
+// The id is optional, if not provided, a new ID will be generated
+func NewModel(collectionName string, id ...string) *Model {
+	var Id string
+	if len(id) > 0 {
+		Id = id[0]
+	}
+	return &Model{
+		CollectionName: collectionName,
+		ID:             Id,
+		Id:             Id,
+	}
+}
+
 // Simple struct to report the result of an operation
 type Result struct {
 	Matched  int64

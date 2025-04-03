@@ -371,3 +371,40 @@ func TestResultString(t *testing.T) {
 		}
 	})
 }
+func TestNewModel(t *testing.T) {
+	t.Run("Creates model with collection name only", func(t *testing.T) {
+		model := bark.NewModel("test_collection")
+		if model.CollectionName != "test_collection" {
+			t.Errorf("Expected CollectionName to be 'test_collection', got '%s'", model.CollectionName)
+		}
+		if model.ID != "" {
+			t.Errorf("Expected ID to be empty, got '%s'", model.ID)
+		}
+		if model.Id != "" {
+			t.Errorf("Expected Id to be empty, got '%s'", model.Id)
+		}
+	})
+
+	t.Run("Creates model with collection name and ID", func(t *testing.T) {
+		model := bark.NewModel("test_collection", "123abc")
+		if model.CollectionName != "test_collection" {
+			t.Errorf("Expected CollectionName to be 'test_collection', got '%s'", model.CollectionName)
+		}
+		if model.ID != "123abc" {
+			t.Errorf("Expected ID to be '123abc', got '%s'", model.ID)
+		}
+		if model.Id != "123abc" {
+			t.Errorf("Expected Id to be '123abc', got '%s'", model.Id)
+		}
+	})
+
+	t.Run("Ignores additional ID arguments", func(t *testing.T) {
+		model := bark.NewModel("test_collection", "first_id", "second_id", "third_id")
+		if model.ID != "first_id" {
+			t.Errorf("Expected ID to be 'first_id', got '%s'", model.ID)
+		}
+		if model.Id != "first_id" {
+			t.Errorf("Expected Id to be 'first_id', got '%s'", model.Id)
+		}
+	})
+}
