@@ -56,6 +56,9 @@ func (c *Collection[T]) Find(filter bson.M, opts *options.FindOptionsBuilder, ct
 	// fmt.Println("collection.Name(): ", collection.Name())
 	// fmt.Println("collection.Database().Name(): ", collection.Database().Name())
 	cursor, err := collection.Find(ctx, filter, opts)
+	if err != nil && err.Error() != "mongo: no documents in result" {
+		return results, nil
+	}
 	if err != nil {
 		return results, fmt.Errorf("error fetching documents: %v", err)
 	}
