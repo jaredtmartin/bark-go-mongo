@@ -13,6 +13,7 @@ func TestConnect(t *testing.T) {
 	// Mock environment variables
 	os.Setenv("MONGO_URI", "mongodb://localhost:27017")
 	os.Setenv("MONGO_DB", "testdb")
+	os.Setenv("ENV", "test")
 
 	// Test case: Connect with default database from environment variable
 	t.Run("Connect with default database", func(t *testing.T) {
