@@ -11,6 +11,8 @@ const tokenLength = 16
 
 var last_test_uuid = 0
 
+// Uuid generates a random UUID string.
+// In test mode, it generates a sequential UUID for testing purposes.
 func Uuid() string {
 	env := os.Getenv("ENV")
 

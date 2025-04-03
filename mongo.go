@@ -20,6 +20,11 @@ const MockDbErrorKey Key = "mockDbError"
 // var client *mongo.Client
 var dbs = make(map[string]*mongo.Database)
 
+// Connect to the MongoDB database
+// If a database name is provided, it will connect to that database
+// If no database name is provided, it will use the MONGO_DB environment variable
+// If the database is already connected, it will return the existing connection
+// If the connection fails, it will return an error
 func Connect(db ...string) (*mongo.Database, error) {
 	// fmt.Println("Connect db")
 	uri := os.Getenv("MONGO_URI")
@@ -44,6 +49,12 @@ func Connect(db ...string) (*mongo.Database, error) {
 	}
 	return dbs[dbName], nil
 }
+
+// Get the database connection
+// If the database name is not in the context, it will return an error
+// If the database is not connected, it will connect to the database
+// If the connection fails, it will return an error
+// If the connection is successful, it will return the database connection
 func Db(ctx context.Context) (*mongo.Database, error) {
 	// fmt.Println("getting db")
 	dbName, ok := ctx.Value(DbNameKey).(string)

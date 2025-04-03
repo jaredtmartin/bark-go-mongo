@@ -10,10 +10,6 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// type MongoDatabaseInferface interface {
-// 	Name() string
-// }
-
 // A model that can be used to save to the database
 type ModelWithCollection interface {
 	SetCollectionName(name string)

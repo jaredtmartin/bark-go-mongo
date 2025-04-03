@@ -24,6 +24,7 @@ type Model struct {
 	Version        int                 `json:"Version" bson:"Version,omitempty"`
 }
 
+// Simple struct to report the result of an operation
 type Result struct {
 	Matched  int64
 	Modified int64
@@ -31,16 +32,22 @@ type Result struct {
 	Deleted  int64
 }
 
+// Returns readable report of the result
 func (r Result) String() string {
 	return fmt.Sprintf("Matched: %d, Modified: %d, Inserted: %d, Deleted: %d", r.Matched, r.Modified, r.Inserted, r.Deleted)
 }
 
+// Returns an empty result
 func EmptyResult() *Result {
 	return &Result{}
 }
+
+// Returns a result from the mongo update operation
 func ResultFromUpdate(result *mongo.UpdateResult) *Result {
 	return &Result{Matched: result.MatchedCount, Modified: result.ModifiedCount, Inserted: result.UpsertedCount}
 }
+
+// Returns a result from the mongo delete operation
 func ResultFromDelete(result *mongo.DeleteResult) *Result {
 	return &Result{Deleted: result.DeletedCount}
 }
@@ -52,9 +59,13 @@ func (m *Model) Collection() *Collection[*Model] {
 	}
 	return m.collection
 }
+
+// Sets the collection name for the model
 func (m *Model) SetCollectionName(name string) {
 	m.CollectionName = name
 }
+
+// Gets the collection name from the model
 func (m *Model) GetCollectionName() string {
 	return m.CollectionName
 }
