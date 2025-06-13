@@ -105,8 +105,11 @@ func (m *Model) SaveModel(obj any, ctx context.Context) (*Result, error) {
 		return EmptyResult(), fmt.Errorf("failed to marshal model to bson: %v", err)
 	}
 	bson.Unmarshal(bsonBytes, &bsonMap)
+	delete(bsonMap, "CreatedOn")
+	delete(bsonMap, "Version")
 	delete(bsonMap, "_id")
 	bsonMap["Id"] = m.Id
+	// bsonMap["UpdatedOn"] = Now(ctx)
 	// fmt.Println("bsonMap: ", bsonMap)
 	update := bson.M{
 		"$set": bsonMap,

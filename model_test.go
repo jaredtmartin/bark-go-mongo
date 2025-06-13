@@ -2,6 +2,7 @@ package bark_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jaredtmartin/bark-go-mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -171,6 +172,26 @@ func TestSaveModel(t *testing.T) {
 		if err == nil || err.Error() != "failed to get collection to save model to: collection name is required" {
 			t.Fatalf("Expected error 'failed to get collection to save model to: collection name is required', got %v", err)
 		}
+	})
+	t.Run("Save model with existing version info", func(t *testing.T) {
+		// Test case: Save model with invalid collection
+		fido := NewDog("Fido")
+		fido.Id = "3333"
+		fido.Version = 1
+		fido.CreatedOn = time.Date(2024, 3, 27, 19, 55, 38, 782000000, time.UTC)
+		fido.UpdatedOn = time.Date(2024, 3, 27, 19, 55, 38, 782000000, time.UTC)
+
+		// model := &bark.Model{
+		// 	Id:        "1111",
+		// 	Version:   7,
+		// 	CreatedOn: time.Date(2024, 3, 27, 19, 55, 38, 782000000, time.UTC),
+		// 	UpdatedOn: time.Date(2024, 3, 27, 19, 55, 38, 782000000, time.UTC),
+		// }
+		_, err := fido.SaveModel(fido, ctx)
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
 	})
 }
 func TestEmptyResult(t *testing.T) {
