@@ -79,6 +79,9 @@ func (c *Collection[T]) FindOne(filter bson.M, ctx context.Context) (T, error) {
 	}
 	obj := *new(T)
 	err = collection.FindOne(ctx, filter).Decode(&obj)
+	if err == mongo.ErrNoDocuments {
+		return *new(T), ErrNotFound
+	}
 	if err != nil {
 		return *new(T), fmt.Errorf("error fetching documents: %v", err)
 	}

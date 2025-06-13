@@ -11,6 +11,7 @@ import (
 )
 
 var ErrClearCanOnlyBeUsedOnDbsStartingWithTest = errors.New("to prevent accidents, clear method can only be used on databases whose names start with 'test'")
+var ErrNotFound = errors.New("not found")
 
 // Returns all documents matching the filter
 func Find(collection *mongo.Collection, filter bson.M, results interface{}, opts *options.FindOptionsBuilder, ctx context.Context) error {
