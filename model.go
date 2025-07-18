@@ -27,12 +27,12 @@ type Model struct {
 // Creates a new model
 // The collection name is required
 // The id is optional, if not provided, a new ID will be generated
-func NewModel(collectionName string, id ...string) *Model {
+func NewModel(collectionName string, id ...string) Model {
 	var Id string
 	if len(id) > 0 {
 		Id = id[0]
 	}
-	return &Model{
+	return Model{
 		CollectionName: collectionName,
 		ID:             Id,
 		Id:             Id,
